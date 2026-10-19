@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
+import { createServer } from "node:net"
 import { homedir } from "node:os"
 import path from "node:path"
 
@@ -26,6 +27,16 @@ if (isolated) {
   mkdirSync(path.join(root, "desktop"), { mode: 0o700 })
   // A valid empty legacy profile skips first-install onboarding without copying personal data.
   writeFileSync(path.join(root, "desktop/default.dat"), "{}", { mode: 0o600 })
+  // Managed services otherwise use the same default port, even with separate state directories.
+  const listener = createServer()
+  await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve))
+  const address = listener.address()
+  assert(address && typeof address !== "string")
+  await new Promise((resolve) => listener.close(resolve))
+  mkdirSync(path.join(root, "config/opencode"), { recursive: true, mode: 0o700 })
+  writeFileSync(path.join(root, "config/opencode/service.json"), JSON.stringify({ port: address.port }), {
+    mode: 0o600,
+  })
 }
 const original = path.join(homedir(), ".local/state/opencode/service.json")
 const before = readFileSync(original, "utf8")

@@ -1229,7 +1229,7 @@ function mockHandlers(
                 id: `evt_deleted_${ctx.params.sessionID}`,
                 created: Date.now(),
                 type: "session.deleted",
-                durable: { aggregateID: ctx.params.sessionID, seq: 1, version: 1 },
+                durable: { aggregateID: ctx.params.sessionID, seq: 1, version: 2 },
                 data: { sessionID: ctx.params.sessionID },
               },
             ])

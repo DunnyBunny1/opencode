@@ -76,6 +76,9 @@ async function openHome(page: Page, input: Parameters<typeof mockStressTimeline>
 
 test("the session context menu renames, exports, and deletes a Home session", async ({ page }) => {
   await openHome(page)
+  const sidebar = page.getByRole("complementary", { name: "Conversations" })
+  await sidebar.getByRole("checkbox", { name: "Show older than seven days" }).check()
+  await expect(sidebar.getByRole("button", { name: fixture.expected.targetTitle, exact: true })).toBeVisible()
   const target = row(page, fixture.expected.targetTitle)
   await expect(target).toBeVisible()
 
@@ -107,10 +110,11 @@ test("the session context menu renames, exports, and deletes a Home session", as
   await title.press("Enter")
   expect((await renamed).postDataJSON()).toEqual({ title: "Renamed from Home" })
   const renamedRow = row(page, "Renamed from Home")
+  await expect(sidebar.getByRole("button", { name: "Renamed from Home", exact: true })).toBeVisible()
   await renamedRow.click()
   await expect(page).toHaveURL(new RegExp(`/session/${fixture.targetID}$`))
   await expect(page.locator('[data-slot="titlebar-tabs"] a').filter({ hasText: "Renamed from Home" })).toBeVisible()
-  await page.getByRole("button", { name: "Home" }).click()
+  await page.getByRole("button", { name: "Home", exact: true }).click()
   await expect(page).toHaveURL("/")
 
   await renamedRow.click({ button: "right" })
