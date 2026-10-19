@@ -194,7 +194,7 @@ export function ConversationSidebar() {
                   blocked: "⛔",
                   ready: "✓",
                   shelved: "☾",
-                  done: "✓",
+                  done: "☑",
                   merged: "",
                 }[status()]
               }
