@@ -49,6 +49,8 @@ const modelKey = (model: ModelItem) => `${model.provider.id}:${model.id}`
 
 const manageKey = "action:manage"
 
+const preferredModels = ["openai:gpt-6-astra", "openrouter:deepseek/deepseek-v4.1-flash-1017"]
+
 const sortModelGroups = (a: { category: string; items: ModelItem[] }, b: { category: string; items: ModelItem[] }) => {
   const aIndex = popularProviders.indexOf(a.category)
   const bIndex = popularProviders.indexOf(b.category)
@@ -155,9 +157,7 @@ const ModelList: Component<{
                     placement="right-start"
                     gutter={12}
                     openDelay={0}
-                    value={
-                      <ModelTooltip model={item} latest={item.latest} free={isFreeModel(item)} v2 />
-                    }
+                    value={<ModelTooltip model={item} latest={item.latest} free={isFreeModel(item)} v2 />}
                   >
                     <span class="min-w-0 truncate">{item.name}</span>
                   </Tooltip>
@@ -456,7 +456,10 @@ function createModelSelectorController(input: {
   const allModels = createMemo(() =>
     model
       .list()
-      .filter((item) => model.visible({ modelID: item.id, providerID: item.provider.id }))
+      .filter(
+        (item) =>
+          preferredModels.includes(modelKey(item)) || model.visible({ modelID: item.id, providerID: item.provider.id }),
+      )
       .filter((item) => (input.provider() ? item.provider.id === input.provider() : true)),
   )
 
@@ -510,7 +513,13 @@ export function ModelSelectorPopoverView(props: {
   const dismiss = createMenuDismissController(() => contentRef)
 
   const models = createMemo(() => props.models(store.search))
-  const groups = createMemo(() => props.groups(models()))
+  const groups = createMemo(() => {
+    const preferred = preferredModels.flatMap((key) => models().filter((model) => modelKey(model) === key))
+    return [
+      ...(preferred.length ? [{ category: "custom-preferred", items: preferred }] : []),
+      ...props.groups(models().filter((model) => !preferredModels.includes(modelKey(model)))),
+    ]
+  })
   const keys = () => [...groups().flatMap((group) => group.items.map(modelKey)), manageKey]
 
   const managed = createMemo(() => consoleModelGroup(props.all()))
@@ -697,10 +706,18 @@ export function ModelSelectorPopoverView(props: {
                         class="gap-1.5 pe-3"
                         style={{ "padding-inline-start": group.items[0].provider.id === "opencode" ? "10px" : "12px" }}
                       >
-                        <ProviderModelIcon provider={group.items[0].provider} class="shrink-0" />
+                        <Show when={group.category !== "custom-preferred"}>
+                          <ProviderModelIcon provider={group.items[0].provider} class="shrink-0" />
+                        </Show>
                         <Show
                           when={managedIDs().has(group.category) ? managed() : undefined}
-                          fallback={<span class="min-w-0 truncate">{group.items[0].provider.name}</span>}
+                          fallback={
+                            <span class="min-w-0 truncate">
+                              {group.category === "custom-preferred"
+                                ? language.t("dialog.model.preferred")
+                                : group.items[0].provider.name}
+                            </span>
+                          }
                         >
                           {(workspace) => (
                             <>
@@ -722,14 +739,7 @@ export function ModelSelectorPopoverView(props: {
                               placement="right-start"
                               gutter={6}
                               openDelay={0}
-                              value={
-                                <ModelTooltip
-                                  model={item}
-                                  latest={item.latest}
-                                  free={isFreeModel(item)}
-                                  v2
-                                />
-                              }
+                              value={<ModelTooltip model={item} latest={item.latest} free={isFreeModel(item)} v2 />}
                             >
                               <Menu.RadioItem
                                 value={modelKey(item)}

@@ -2,10 +2,65 @@ import { expect, test, type Page } from "@playwright/test"
 import { expectPath, holdRoute, NO_PROVIDER, project, REMOTE_SERVER, seed, sessionHref } from "../utils/app"
 import { mockOpenCodeServer } from "../utils/mock-server"
 import { fixture, mockStressTimeline } from "../utils/session-fixture"
-import { mockRemoteServer } from "../utils/workspace"
+import { mockRemoteServer, mockWorkspace } from "../utils/workspace"
 import { APP_READY_TIMEOUT, expectAppVisible } from "../utils/waits"
 
 test.use({ serviceWorkers: "block" })
+
+test("conversation sidebar keeps pins, searches old history, and persists board status", async ({ page }) => {
+  const now = Date.now()
+  await mockWorkspace(page, {
+    name: "Sidebar",
+    sessions: [
+      {
+        id: "ses_sidebar_recent",
+        title: "Current work",
+        time: { created: now, updated: now },
+        metadata: { source: "keep-me" },
+      },
+      {
+        id: "ses_sidebar_old",
+        title: "Old idea",
+        time: { created: now - 30 * 86400000, updated: now - 30 * 86400000 },
+      },
+      {
+        id: "ses_sidebar_pin",
+        title: "Pinned history",
+        time: { created: 1, updated: 1 },
+        metadata: { customWorkflow: { pinned: true, status: "ready" } },
+      },
+    ],
+  })
+  await page.goto("/")
+  const sidebar = page.getByRole("complementary", { name: "Conversations" })
+  await expect(sidebar.getByRole("button", { name: "Pinned history", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("button", { name: "Current work", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("button", { name: "Old idea", exact: true })).toHaveCount(0)
+  await sidebar.getByRole("searchbox").fill("Old idea")
+  await expect(sidebar.getByRole("button", { name: "Old idea", exact: true })).toBeVisible()
+  await sidebar.getByRole("searchbox").fill("")
+  const saved = page.waitForRequest(
+    (request) => request.method() === "PATCH" && request.url().includes("ses_sidebar_recent"),
+  )
+  await sidebar.getByRole("combobox", { name: "Status for Current work" }).selectOption("merged")
+  expect((await saved).postDataJSON()).toEqual({
+    metadata: { source: "keep-me", customWorkflow: { status: "merged" } },
+  })
+  await expect(sidebar.getByRole("combobox", { name: "Status for Current work" })).toBeEnabled()
+  await sidebar.getByRole("button", { name: "Board", exact: true }).focus()
+  await sidebar.getByRole("button", { name: "Board", exact: true }).press("Enter")
+  const board = page.getByRole("dialog", { name: "Board", exact: true })
+  await expect(board.getByRole("combobox", { name: "Status for Current work" })).toHaveValue("merged")
+  await page.keyboard.press("Escape")
+  await expect(sidebar.getByRole("button", { name: "Board", exact: true })).toBeFocused()
+  await sidebar.getByRole("button", { name: "Pin conversation", exact: true }).click()
+  await expect(sidebar.getByRole("button", { name: "Unpin conversation", exact: true })).toHaveCount(2)
+  await page.reload()
+  await expect(sidebar.getByRole("button", { name: "Unpin conversation", exact: true })).toHaveCount(2)
+  await expect(sidebar.getByRole("combobox", { name: "Status for Current work" })).toHaveValue("merged")
+  await sidebar.getByRole("button", { name: "Current work", exact: true }).click()
+  await expect(page).toHaveURL(/ses_sidebar_recent$/)
+})
 
 const row = (page: Page, title: string) =>
   page.locator('[data-component="home-session-row"]').filter({ hasText: title })
@@ -75,6 +130,11 @@ test("the session context menu renames, exports, and deletes a Home session", as
   await dialog.getByRole("button", { name: "Delete session" }).click()
   await removed
   await expect(renamedRow).toBeHidden()
+  await expect(
+    page
+      .getByRole("complementary", { name: "Conversations" })
+      .getByRole("button", { name: "Renamed from Home", exact: true }),
+  ).toHaveCount(0)
 })
 
 test("the Home shortcut focuses session search, and the Home button leaves focus alone", async ({ page }) => {

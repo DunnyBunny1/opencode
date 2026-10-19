@@ -11,6 +11,7 @@ import { useSettingsSurface } from "@/settings/surface"
 import { useSettings } from "@/settings/model"
 import { ExtensionServerCover } from "@/runtime/extension/server-shell"
 import { ExtensionSlot } from "@/runtime/extension/render"
+import { ConversationSidebar } from "@/shell/conversations/sidebar"
 
 export default function Layout(props: ParentProps) {
   const platform = usePlatform()
@@ -47,6 +48,9 @@ export default function Layout(props: ParentProps) {
       >
         <Titlebar verticalTabs={verticalTabs() ? { mount: state.tabsMount } : undefined} />
         <div class="flex flex-1 min-h-0 min-w-0 flex-row">
+          <Show when={!mobile()}>
+            <ConversationSidebar />
+          </Show>
           <Show when={verticalTabs()}>
             <aside
               ref={(element) => setState("tabsMount", element)}

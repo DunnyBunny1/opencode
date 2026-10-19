@@ -8,6 +8,8 @@ Personal branch: `personal-desktop`. Push only to origin; never force-push synch
 
 macOS arm64, Xcode selected at `/Applications/Xcode.app/Contents/Developer`,
 Bun 1.4.3 (repository accepts ^1.4.2), Node and GitHub CLI installed.
+The build script selects repository-pinned Bun 1.4.2 through `bunx` when needed.
+Use 1.4.2 for app unit/browser tests: 1.4.3 fails Solid JSX imports even on the unchanged baseline.
 V2 desktop uses Electron, not Tauri; Rust is not required.
 `bun install --frozen-lockfile` installs Electron and native PTY dependencies.
 
@@ -40,6 +42,11 @@ python3 script/custom-install.py 'packages/desktop/dist/mac-arm64/OpenCode Custo
 node script/custom-smoke.mjs '/Applications/OpenCode Custom.app'
 open '/Applications/OpenCode Custom.app'
 ```
+
+While the custom app is active, `bash script/custom-build.sh --stage` builds and signs a candidate
+without launching it. This does not create installation approval: native smoke verification and
+installation still require the active app/session to be safely closed with the owner's involvement.
+Do not restart the app or server to work around that boundary.
 
 Sync fetches at most once per calendar day and reports commits to integrate. It does not
 discard local changes or silently resolve conflicts. After acceptance, commit and push

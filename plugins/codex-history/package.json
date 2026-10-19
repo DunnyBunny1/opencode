@@ -1,0 +1,6 @@
+{
+  "name": "opencode-custom-codex-history",
+  "private": true,
+  "type": "module",
+  "main": "index.ts"
+}

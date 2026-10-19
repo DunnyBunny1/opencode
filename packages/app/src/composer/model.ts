@@ -26,6 +26,7 @@ import { createComposerHistory } from "./history/store"
 import { createComposerSubmit } from "./submit"
 import { useAttachmentDestination } from "./attachments/destination"
 import { parseClientSlashCommand } from "./client-slash-command"
+import { reasoningChoices, speedVariant, splitSpeed } from "@/providers/models/speed"
 
 export type ComposerModel = ComposerEditorModel & {
   readonly model: ComposerControls["model"]
@@ -254,8 +255,6 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
     })),
   ])
 
-  const variants = createMemo(() => ["default", ...adapter.controls().model.selection.variant.list()])
-
   const submission = createComposerSubmit({
     adapter,
     mode,
@@ -401,9 +400,19 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
           : undefined
       },
       variant: {
-        options: () => variants().map((value) => ({ id: value, label: value })),
-        current: () => adapter.controls().model.selection.variant.current() ?? "default",
-        onSelect: (value) => adapter.controls().model.selection.variant.set(value === "default" ? undefined : value),
+        options: () =>
+          reasoningChoices(
+            adapter.controls().model.selection.variant.list(),
+            splitSpeed(adapter.controls().model.selection.variant.current()).speed,
+          ).map((value) => ({ id: value, label: value })),
+        current: () => splitSpeed(adapter.controls().model.selection.variant.current()).reasoning,
+        onSelect: (value) => {
+          const selection = adapter.controls().model.selection
+          const next = speedVariant(splitSpeed(selection.variant.current()).speed, value)
+          selection.variant.set(
+            next && selection.variant.list().includes(next) ? next : value === "default" ? undefined : value,
+          )
+        },
         keybind: () => command.keybindParts("model.variant.cycle"),
       },
       submit: {

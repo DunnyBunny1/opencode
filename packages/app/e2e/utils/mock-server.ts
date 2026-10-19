@@ -1220,7 +1220,20 @@ function mockHandlers(
               ? Effect.succeed({ data: currentSession(session, config.directory) })
               : Effect.fail(new MockNotFound({ message: "Session not found" }))
           }),
-        sessionRemove: () => noContent,
+        sessionRemove: (ctx) =>
+          Effect.sync(() => {
+            const index = config.sessions.findIndex((session) => session.id === ctx.params.sessionID)
+            if (index >= 0) config.sessions.splice(index, 1)
+            state.emit([
+              {
+                id: `evt_deleted_${ctx.params.sessionID}`,
+                created: Date.now(),
+                type: "session.deleted",
+                durable: { aggregateID: ctx.params.sessionID, seq: 1, version: 1 },
+                data: { sessionID: ctx.params.sessionID },
+              },
+            ])
+          }).pipe(Effect.andThen(noContent)),
         sessionShell: () => noContent,
         sessionForm: (ctx) =>
           Effect.succeed({
@@ -1334,10 +1347,11 @@ function mockHandlers(
         },
         sessionRename: (ctx) =>
           Effect.sync(() => {
-            const title = Option.getOrUndefined(decodeSessionRename(ctx.payload))?.title
+            const update = Option.getOrUndefined(decodeSessionRename(ctx.payload))
             const session = config.sessions.find((item) => item.id === ctx.params.sessionID)
 
-            if (session && title !== undefined) session.title = title
+            if (session && update?.title !== undefined) session.title = update.title
+            if (session && update?.metadata !== undefined) session.metadata = update.metadata
           }).pipe(Effect.andThen(noContent)),
         sessionCommand: (ctx) => {
           const recordCommand = config.onCommand
@@ -1511,6 +1525,7 @@ export function currentSession(session: MockSession, fallbackDirectory?: string)
     projectID: session.projectID ?? "project",
     agent: session.agent ?? "build",
     model: session.model,
+    metadata: session.metadata,
     cost: session.cost ?? 0,
     tokens: session.tokens ?? { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
     ...decodeSessionOutcome(session),
@@ -1548,7 +1563,12 @@ const decodeSessionCreate = Schema.decodeUnknownOption(
   Schema.Struct({ id: lenient(Schema.String), title: lenient(Schema.String), parentID: lenient(Schema.String) }),
 )
 
-const decodeSessionRename = Schema.decodeUnknownOption(Schema.Struct({ title: Schema.String }))
+const decodeSessionRename = Schema.decodeUnknownOption(
+  Schema.Struct({
+    title: Schema.optional(Schema.String),
+    metadata: Schema.optional(Schema.Record(Schema.String, Schema.Json)),
+  }),
+)
 
 const decodeRevertStage = Schema.decodeUnknownOption(Schema.Struct({ messageID: Schema.String }))
 

@@ -12,6 +12,7 @@ import { DialogSelectModelUnpaid } from "@/providers/models/unpaid"
 import { formatKeybind, useCommand } from "@/shell/commands/command"
 import { useLanguage } from "@/runtime/i18n/language"
 import type { ComposerModel } from "./model"
+import { ComposerPreferences } from "./preferences"
 
 export function Composer(props: {
   class?: string
@@ -51,6 +52,7 @@ export function Composer(props: {
           />
         }
       />
+      <ComposerPreferences model={props.model.model.selection} />
     </div>
   )
 }

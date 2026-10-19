@@ -4,6 +4,55 @@ import { openDraft, openSession } from "../utils/workspace"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
+test("speed selection preserves reasoning and project approval choice", async ({ page }) => {
+  const switches: unknown[] = []
+  const prompts: unknown[] = []
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/api/session/ses_speed/model")
+      switches.push(request.postDataJSON())
+  })
+  const view = await openSession(page, {
+    name: "SpeedControls",
+    sessions: [{ id: "ses_speed", model: { id: "astra", providerID: "opencode", variant: "xhigh" } }],
+    provider: provider({
+      id: "astra",
+      name: "Astra",
+      variants: {
+        high: {},
+        xhigh: {},
+        "custom-fast-high": {},
+        "custom-fast-xhigh": {},
+        "custom-ultrafast-high": {},
+        "custom-ultrafast-xhigh": {},
+      },
+    }),
+    onPrompt: (input) => void prompts.push(input.body),
+  })
+  const speed = page.getByRole("combobox", { name: "Speed", exact: true })
+  await speed.selectOption("ultrafast")
+  const reasoning = page.getByRole("button", { name: "Choose model variant", exact: true })
+  await expect(reasoning).toHaveText("xhigh")
+  await reasoning.click()
+  await page.getByRole("menuitemradio", { name: "high", exact: true }).click()
+  await expect(speed).toHaveValue("ultrafast")
+  await page.keyboard.press("Control+Shift+d")
+  await expect(reasoning).toHaveText("xhigh")
+  await expect(speed).toHaveValue("ultrafast")
+  await page.keyboard.press("Control+Shift+d")
+  await expect(reasoning).toHaveText("high")
+  const approvals = page.getByRole("combobox", { name: "Approval mode" })
+  await expect(approvals).toHaveValue("ask")
+  await approvals.selectOption("auto")
+  await view.editor.fill("Use the chosen reasoning and speed")
+  await view.editor.press("Enter")
+  await expect.poll(() => prompts.length).toBe(1)
+  expect(switches).toEqual([{ model: { id: "astra", providerID: "opencode", variant: "custom-ultrafast-high" } }])
+  await page.reload()
+  await expect(approvals).toHaveValue("auto")
+  await approvals.selectOption("ask")
+  await expect(approvals).toHaveValue("ask")
+})
+
 test("a catalog refresh cannot replace an existing session's model", async ({ page }) => {
   const alpha = { id: "alpha", name: "Alpha", variants: { high: {} } }
   const beta = { id: "beta", name: "Beta" }

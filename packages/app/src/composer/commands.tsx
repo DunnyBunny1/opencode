@@ -53,7 +53,13 @@ export const useComposerCommands = (input: { model?: ModelSelection } = {}) => {
       title: language.t("command.model.variant.cycle"),
       description: language.t("command.model.variant.cycle.description"),
       keybind: "shift+mod+d",
-      onSelect: () => model.variant.cycle(),
+      onSelect: () => {
+        const current = splitSpeed(model.variant.current())
+        const choices = reasoningChoices(model.variant.list(), current.speed)
+        if (!choices.length) return
+        const next = choices[(choices.indexOf(current.reasoning) + 1) % choices.length]
+        model.variant.set(speedVariant(current.speed, next))
+      },
     }),
     providerCommand({
       id: "provider.connect",
@@ -81,3 +87,4 @@ export const useComposerCommands = (input: { model?: ModelSelection } = {}) => {
     }),
   ])
 }
+import { reasoningChoices, speedVariant, splitSpeed } from "@/providers/models/speed"

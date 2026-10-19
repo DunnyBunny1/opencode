@@ -1,0 +1,196 @@
+.conversation-sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  padding: 12px 10px;
+  gap: 10px;
+  color: var(--text-base);
+  font-size: 13px;
+  line-height: var(--line-height-base, 20px);
+}
+.conversation-sidebar button,
+.conversation-board button {
+  cursor: pointer;
+}
+.conversation-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+}
+.conversation-toolbar strong {
+  flex: 1;
+}
+.conversation-toolbar button,
+.conversation-history,
+.conversation-empty {
+  opacity: 0.65;
+}
+.conversation-sidebar > input {
+  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  border-radius: 7px;
+  padding: 6px 9px;
+  width: 100%;
+}
+.conversation-history {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.conversation-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.conversation-scroll h2 {
+  opacity: 0.55;
+  padding: 12px 8px 6px;
+  font-weight: 500;
+}
+.conversation-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 8px;
+  padding: 0 6px 0 10px;
+  min-height: 34px;
+}
+.conversation-row:hover,
+.conversation-row.active {
+  background: color-mix(in srgb, currentColor 9%, transparent);
+}
+.conversation-title {
+  flex: 1;
+  text-align: start;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  height: 34px;
+  min-width: 0;
+}
+.conversation-pin {
+  opacity: 0;
+  width: 18px;
+  flex-shrink: 0;
+}
+.conversation-row:hover .conversation-pin,
+.conversation-row:focus-within .conversation-pin {
+  opacity: 0.6;
+}
+.conversation-status {
+  position: relative;
+  width: 18px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.conversation-status select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.conversation-status:focus-within {
+  outline: 1px solid currentColor;
+  border-radius: 4px;
+}
+.conversation-status[data-status="merged"] {
+  color: light-dark(#6f42c1, #b89af5);
+}
+.conversation-status[data-status="ready"],
+.conversation-status[data-status="done"] {
+  color: var(--v2-state-fg-success);
+}
+.conversation-status[data-status="in-progress"] {
+  color: var(--v2-state-fg-info);
+}
+.conversation-status[data-status="shelved"],
+.conversation-status[data-status="unclassified"] {
+  opacity: 0.45;
+}
+.conversation-project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 6px;
+}
+.conversation-project span {
+  flex: 1;
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-project small,
+.conversation-board small {
+  opacity: 0.45;
+}
+.conversation-project-items {
+  padding-inline-start: 16px;
+}
+.conversation-empty {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.conversation-reopen {
+  align-self: flex-start;
+  padding: 10px 4px;
+}
+.conversation-board {
+  display: flex;
+  flex-direction: column;
+  height: min(80dvh, 800px);
+}
+.conversation-board-filters {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px 12px;
+}
+.conversation-board-filters > input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  border-radius: 6px;
+}
+.conversation-columns {
+  display: flex;
+  overflow: auto;
+  flex: 1;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+.conversation-columns > section {
+  flex: 0 0 250px;
+  overflow: auto;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  border-radius: 8px;
+  padding: 8px;
+}
+.conversation-columns h2 {
+  padding: 4px 6px 12px;
+}
+.conversation-columns article {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+.conversation-columns article > small {
+  padding-inline-start: 10px;
+}
+@media (max-width: 767px) {
+  .conversation-sidebar,
+  .conversation-reopen,
+  .conversation-board {
+    display: none;
+  }
+}
