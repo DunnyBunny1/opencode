@@ -43,10 +43,11 @@ node script/custom-smoke.mjs '/Applications/OpenCode Custom.app'
 open '/Applications/OpenCode Custom.app'
 ```
 
-While the custom app is active, `bash script/custom-build.sh --stage` builds and signs a candidate
-without launching it. This does not create installation approval: native smoke verification and
-installation still require the active app/session to be safely closed with the owner's involvement.
-Do not restart the app or server to work around that boundary.
+Native smoke tests default to a fresh isolated profile, including Electron user/session data and
+backend state. They can run alongside the active custom app without adopting or replacing its server.
+`bash script/custom-build.sh --stage` additionally skips the smoke test when only an artifact is wanted;
+that candidate cannot be installed until it passes smoke verification. Installation still requires
+the owner to close the app. Do not restart the active app or server to work around that boundary.
 
 Sync fetches at most once per calendar day and reports commits to integrate. It does not
 discard local changes or silently resolve conflicts. After acceptance, commit and push
@@ -55,9 +56,10 @@ the personal branch to origin. Update origin/dev by fast-forward only when appro
 Build runs the full lint/typecheck, desktop tests, local CLI compilation, Electron build,
 packaging, ad-hoc signing and GUI/API smoke test. Production prebuild refuses a custom
 build without an explicit local CLI distribution. Tests make no inference requests.
-Do not run smoke/build against an active custom app/session without permission: smoke
-opens and closes its own window, and version changes may restart the custom server.
-The scripts refuse if a custom desktop window is running. For interactive source development,
+Never use smoke's optional `--live-profile` mode against an active custom app/session: version
+changes may replace its server. The installer and live-profile smoke refuse a running custom window.
+Default smoke opens/closes only its isolated candidate and stops only that candidate's server.
+For interactive source development,
 close the custom desktop first and use a separate backend sandbox:
 `OPENCODE_CUSTOM_ROOT="$HOME/.local/share/opencode-custom-dev" OPENCODE_CUSTOM=1 bun run dev:desktop`.
 This uses fresh development server data rather than running two servers against the custom database.

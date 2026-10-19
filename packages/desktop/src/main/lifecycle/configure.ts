@@ -47,6 +47,13 @@ export function configureApplication() {
   const testRoot = createTestRoot()
   app.setPath("userData", testRoot ? path.join(testRoot, "desktop") : path.join(app.getPath("appData"), APP_ID))
 
+  if (CUSTOM && process.env.OPENCODE_CUSTOM_ROOT && !testRoot) {
+    const desktop = path.resolve(process.env.OPENCODE_CUSTOM_ROOT, "desktop")
+    mkdirSync(desktop, { recursive: true })
+    app.setPath("userData", desktop)
+    app.setPath("sessionData", desktop)
+  }
+
   if (testRoot) {
     app.setPath("sessionData", path.join(testRoot, "session"))
 
