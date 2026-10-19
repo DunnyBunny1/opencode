@@ -249,6 +249,7 @@ const source = {
   "ui.message.voice": "Voice",
   "ui.message.deletePending": "Delete",
   "ui.message.copyResponse": "Copy response",
+  "ui.message.historicalTool": "Imported Codex tool: {{name}}",
   "ui.message.copied": "Copied",
   "ui.message.thought": "Thought",
   "ui.message.duration.seconds": "{{count}}s",

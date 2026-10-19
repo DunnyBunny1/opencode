@@ -123,6 +123,7 @@ const require = __cjs_mod__.createRequire(import.meta.url);
       },
       define: {
         "import.meta.env.OPENCODE_VERSION": JSON.stringify(process.env.OPENCODE_VERSION),
+        "import.meta.env.VITE_OPENCODE_CUSTOM": JSON.stringify(process.env.OPENCODE_CUSTOM === "1"),
         "import.meta.env.VITE_OPENCODE_CHANNEL": JSON.stringify(channel),
         "import.meta.env.OPENCODE_TEST_ONBOARDING": JSON.stringify(
           command === "serve" && process.env.OPENCODE_TEST_ONBOARDING === "1",

@@ -45,6 +45,23 @@
   flex: 1;
   min-height: 0;
 }
+.conversation-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline-end: 6px;
+}
+.conversation-section-header h2 {
+  flex: 1;
+}
+.conversation-section-header button {
+  opacity: 0.5;
+  padding: 2px 6px;
+  font-size: 16px;
+}
+.conversation-section-header button:hover {
+  opacity: 1;
+}
 .conversation-scroll h2 {
   opacity: 0.55;
   padding: 12px 8px 6px;
@@ -141,12 +158,14 @@
 .conversation-status[data-status="merged"] {
   color: light-dark(#6f42c1, #b89af5);
 }
-.conversation-status[data-status="ready"],
-.conversation-status[data-status="done"] {
+.conversation-status[data-status="ready"] {
   color: var(--v2-state-fg-success);
 }
-.conversation-status[data-status="in-progress"] {
+.conversation-status[data-status="implementation"] {
   color: var(--v2-state-fg-info);
+}
+.conversation-status[data-status="qa"] {
+  color: var(--v2-state-fg-warning);
 }
 .conversation-status[data-status="shelved"],
 .conversation-status[data-status="unclassified"] {

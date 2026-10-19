@@ -129,7 +129,7 @@ const appearanceSchema = Persistence.struct({
   mono: Schema.String,
   sans: Schema.String,
   terminal: Schema.String,
-  tabLayout: Schema.Literals(["horizontal", "vertical"]),
+  tabLayout: Schema.Literals(["horizontal", "vertical", "hidden"]),
 })
 
 const permissionsSchema = Persistence.struct({
@@ -284,7 +284,13 @@ export const defaultSettings: Settings = {
     terminalPlacement: "side",
     followUpBehavior: "steer",
   },
-  appearance: { fontSize: 14, mono: "", sans: "", terminal: "", tabLayout: "horizontal" },
+  appearance: {
+    fontSize: 14,
+    mono: "",
+    sans: "",
+    terminal: "",
+    tabLayout: import.meta.env.VITE_OPENCODE_CUSTOM ? "hidden" : "horizontal",
+  },
   keybinds: {},
   permissions: { autoApprove: false, autoApproveProjects: {} },
   workspaces: { defaultDestination: "last-used", lastUsed: {} },

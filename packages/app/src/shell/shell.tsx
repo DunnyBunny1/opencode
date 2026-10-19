@@ -25,6 +25,7 @@ export default function Layout(props: ParentProps) {
   })
 
   const verticalTabs = () => preferences.appearance.tabLayout() === "vertical" && !mobile()
+  const hiddenTabs = () => preferences.appearance.tabLayout() === "hidden"
   const bottomTitlebar = () => mobile() && preferences.general.mobileTitlebarPosition() === "bottom"
 
   return (
@@ -46,7 +47,7 @@ export default function Layout(props: ParentProps) {
             : "max(0px, calc(8px - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))))",
         }}
       >
-        <Titlebar verticalTabs={verticalTabs() ? { mount: state.tabsMount } : undefined} />
+        <Titlebar verticalTabs={verticalTabs() ? { mount: state.tabsMount } : undefined} hiddenTabs={hiddenTabs()} />
         <div class="flex flex-1 min-h-0 min-w-0 flex-row">
           <Show when={!mobile()}>
             <ConversationSidebar />

@@ -1,18 +1,16 @@
 import type { SessionInfo } from "@opencode/client/promise"
 import { Option, Schema } from "effect"
 
-export const statuses = [
-  "unclassified",
-  "idea",
-  "in-progress",
-  "blocked",
-  "ready",
-  "shelved",
-  "done",
-  "merged",
-] as const
+export const boardStatuses = ["planning", "implementation", "qa", "merged"] as const
+export const offBoardStatuses = ["idea", "blocked", "shelved"] as const
+export const statuses = ["unclassified", ...boardStatuses, ...offBoardStatuses] as const
+
+// Stored values include old names so existing sessions decode without losing their metadata.
+const storedStatuses = [...statuses, "in-progress", "ready", "done"] as const
+
 export const Workflow = Schema.Struct({
-  status: Schema.optional(Schema.Literals(statuses)),
+  status: Schema.optional(Schema.Literals(storedStatuses)),
+  ready: Schema.optional(Schema.Boolean),
   pinned: Schema.optional(Schema.Boolean),
   pullRequest: Schema.optional(Schema.Number),
   mergedAt: Schema.optional(Schema.String),
@@ -21,7 +19,13 @@ export const Workflow = Schema.Struct({
 const Codex = Schema.Struct({ updatedAt: Schema.Number, sidebarDirectory: Schema.optional(Schema.String) })
 
 export function workflow(session: SessionInfo): typeof Workflow.Type {
-  return Option.getOrElse(Schema.decodeUnknownOption(Workflow)(session.metadata?.customWorkflow), () => ({}))
+  // Keep old stored names readable while exposing only current phases to the UI.
+  const decoded = Option.getOrUndefined(Schema.decodeUnknownOption(Workflow)(session.metadata?.customWorkflow))
+  const value: typeof Workflow.Type = decoded ?? {}
+  if (value.status === "in-progress") return { ...value, status: "implementation" }
+  if (value.status === "done") return { ...value, status: "qa" }
+  if (value.status === "ready") return { ...value, status: "qa", ready: true }
+  return value
 }
 
 export function conversationGroups(sessions: SessionInfo[], search: string, history: boolean, board = false) {

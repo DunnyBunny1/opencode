@@ -18,7 +18,7 @@ import { SettingsRow } from "@/settings/row"
 import { createShellOptions, type ShellSettingsController } from "./controllers"
 import "@/settings/settings.css"
 
-const tabLayoutOptions: ("horizontal" | "vertical")[] = ["horizontal", "vertical"]
+const tabLayoutOptions: ("horizontal" | "vertical" | "hidden")[] = ["horizontal", "vertical", "hidden"]
 
 const AutoApprovePermissionsSetting: Component = () => {
   const language = useLanguage()
@@ -209,7 +209,9 @@ const TabLayoutSetting = () => {
         label={(option) =>
           option === "horizontal"
             ? language.t("settings.appearance.row.tabs.horizontal")
-            : language.t("settings.appearance.row.tabs.vertical")
+            : option === "vertical"
+              ? language.t("settings.appearance.row.tabs.vertical")
+              : language.t("settings.appearance.row.tabs.hidden")
         }
         onSelect={(option) => option && settings.appearance.setTabLayout(option)}
       />

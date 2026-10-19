@@ -15,6 +15,8 @@ V2 desktop uses Electron, not Tauri; Rust is not required.
 
 ## App and data
 
+Custom builds default session tabs to **Hidden**; re-enable horizontal or vertical tabs under
+Settings → General → Tabs. The conversation sidebar is the primary navigation.
 `/Applications/OpenCode Custom.app` has bundle ID `ai.opencode.desktop.custom`.
 It uses the dev channel to disable official automatic updates, no URL handler,
 and a locally compiled CLI with a unique custom version. It never selects a CLI from PATH.

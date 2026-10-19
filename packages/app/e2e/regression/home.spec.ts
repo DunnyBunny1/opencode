@@ -44,7 +44,7 @@ test("conversation sidebar keeps pins, searches old history, and persists board 
   )
   await sidebar.getByRole("combobox", { name: "Status for Current work" }).selectOption("merged")
   expect((await saved).postDataJSON()).toEqual({
-    metadata: { source: "keep-me", customWorkflow: { status: "merged" } },
+    metadata: { source: "keep-me", customWorkflow: { status: "merged", ready: false } },
   })
   await expect(sidebar.getByRole("combobox", { name: "Status for Current work" })).toBeEnabled()
   await sidebar.getByRole("button", { name: "Board", exact: true }).focus()
@@ -71,13 +71,20 @@ test("board cards drag between statuses and conversation titles rename on double
   const now = Date.now()
   await mockWorkspace(page, {
     name: "Board",
-    sessions: [{ id: "ses_board_card", title: "Current work", time: { created: now, updated: now } }],
+    sessions: [
+      {
+        id: "ses_board_card",
+        title: "Current work",
+        time: { created: now, updated: now },
+        metadata: { customWorkflow: { status: "planning" } },
+      },
+    ],
   })
   await page.goto("/")
   const sidebar = page.getByRole("complementary", { name: "Conversations" })
   await sidebar.getByRole("button", { name: "Board", exact: true }).click()
   const board = page.getByRole("dialog", { name: "Board", exact: true })
-  const progress = board.getByRole("region", { name: "In progress", exact: true })
+  const progress = board.getByRole("region", { name: "Implementation", exact: true })
   const card = board.getByRole("listitem", { name: "Current work", exact: true })
   await expect(card).toBeVisible()
   const target = progress.locator(".conversation-board-dropzone")
@@ -93,7 +100,7 @@ test("board cards drag between statuses and conversation titles rename on double
   await page.mouse.move(sourceBox!.x + 32, sourceBox!.y + 28, { steps: 4 })
   await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 10 })
   await page.mouse.up()
-  expect((await moved).postDataJSON()).toMatchObject({ metadata: { customWorkflow: { status: "in-progress" } } })
+  expect((await moved).postDataJSON()).toMatchObject({ metadata: { customWorkflow: { status: "implementation" } } })
   await expect(progress.getByRole("listitem", { name: "Current work", exact: true })).toBeVisible()
   await board.getByRole("button", { name: "Close", exact: true }).click()
   await expect(board).toBeHidden()

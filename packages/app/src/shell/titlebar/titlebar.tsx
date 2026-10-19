@@ -54,7 +54,7 @@ const macTrafficLightsTopClearance = 28
 // titlebar row stays 16px clear of it, as ChatGPT's phone header does. Without one, 8px matches the content gap below.
 const mobileTopClearance = "max(8px, min(16px, env(safe-area-inset-top, 0px) * 1000))"
 
-export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
+export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement }; hiddenTabs?: boolean }) {
   const platform = usePlatform()
   const command = useCommand()
   const language = useLanguage()
@@ -682,20 +682,22 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                     when={props.verticalTabs}
                     fallback={
                       <>
-                        <TitlebarTabStrip
-                          tabs={tabsStore}
-                          currentTab={currentTab()}
-                          onNavigate={(tab, el) => {
-                            tabs.select(tab)
-                            el?.scrollIntoView({ behavior: "instant" })
-                          }}
-                          onClose={(tab) => {
-                            const index = tabsStore.findIndex((item) => tabKey(item) === tabKey(tab))
+                        <Show when={!props.hiddenTabs}>
+                          <TitlebarTabStrip
+                            tabs={tabsStore}
+                            currentTab={currentTab()}
+                            onNavigate={(tab, el) => {
+                              tabs.select(tab)
+                              el?.scrollIntoView({ behavior: "instant" })
+                            }}
+                            onClose={(tab) => {
+                              const index = tabsStore.findIndex((item) => tabKey(item) === tabKey(tab))
 
-                            if (index !== -1) tabsStoreActions.closeTab(index)
-                          }}
-                          onReorder={(keys) => tabsStoreActions.reorder(keys)}
-                        />
+                              if (index !== -1) tabsStoreActions.closeTab(index)
+                            }}
+                            onReorder={(keys) => tabsStoreActions.reorder(keys)}
+                          />
+                        </Show>
                         <RecentlyClosedTabsMenu
                           onNewTab={openNewTab}
                           tooltip={

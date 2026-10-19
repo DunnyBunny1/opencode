@@ -1,5 +1,5 @@
 {
-  "name": "opencode-custom-auto-merged",
+  "name": "opencode-custom-workflow",
   "private": true,
   "type": "module",
   "main": "index.ts"

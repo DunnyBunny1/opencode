@@ -21,7 +21,10 @@ import { useCommand } from "@/shell/commands/command"
 import { showToast } from "@/shell/notifications/toast"
 import { listAllSessions } from "@/session/list"
 import { sessionFormRequest, sessionPermissionRequest } from "@/session/requests/session-request-tree"
-import { conversationGroups, statuses, workflow, type ConversationGroup, type Workflow } from "./model"
+import { addProjects } from "@/home/projects/add"
+import { homeProjectDirectories } from "@/shell/layout/helpers"
+import { useDirectoryPicker } from "@/workspaces/selection/picker"
+import { boardStatuses, conversationGroups, statuses, workflow, type ConversationGroup, type Workflow } from "./model"
 import "./sidebar.css"
 
 const preferences = Persistence.struct({
@@ -39,6 +42,7 @@ export function ConversationSidebar() {
   const command = useCommand()
   const cache = useQueryClient()
   const dialog = useDialog()
+  const pickDirectory = useDirectoryPicker()
   let boardTrigger: HTMLButtonElement | undefined
   const [saved, save] = persisted(Persist.global("custom-conversations"), preferences, {
     opened: true,
@@ -125,11 +129,7 @@ export function ConversationSidebar() {
     return result
   })
   const groups = createMemo(() => conversationGroups(sessions(), state.search, true))
-  const boardGroups = createMemo(() =>
-    conversationGroups(sessions(), state.search, saved.history, true).filter(
-      (group) => (group.workflow.status ?? "unclassified") !== "idea",
-    ),
-  )
+  const boardGroups = createMemo(() => conversationGroups(sessions(), state.search, saved.history, true))
   const pinned = createMemo(() => groups().filter((group) => group.workflow.pinned))
   const projects = createMemo(() => {
     const groupsByDirectory = Map.groupBy(
@@ -141,6 +141,18 @@ export function ConversationSidebar() {
 
     return [...groupsByDirectory].toSorted(([a], [b]) => a.localeCompare(b))
   })
+
+  const addProject = () => {
+    const conn = connection()
+    const ctx = context()
+    if (!conn || !ctx) return
+    pickDirectory({
+      server: conn,
+      title: language.t("command.project.open"),
+      multiple: true,
+      onSelect: (result) => addProjects(ctx, homeProjectDirectories(result)),
+    })
+  }
 
   command.register(() => [
     {
@@ -214,7 +226,7 @@ export function ConversationSidebar() {
   }
 
   function Status(props: { group: ConversationGroup }) {
-    const status = () => props.group.workflow.status ?? "unclassified"
+    const status = () => (props.group.workflow.ready ? "ready" : (props.group.workflow.status ?? "unclassified"))
     return (
       <span class="conversation-status" data-status={status()} title={language.t(`conversations.status.${status()}`)}>
         <Show
@@ -225,11 +237,14 @@ export function ConversationSidebar() {
                 {
                   unclassified: "○",
                   idea: "💡",
-                  "in-progress": "◐",
+                  planning: "🗺",
+                  implementation: "⚙",
+                  qa: "🧪",
+                  ready: "🏁",
                   blocked: "⛔",
-                  ready: "✓",
                   shelved: "☾",
-                  done: "☑",
+                  "in-progress": "",
+                  done: "",
                   merged: "",
                 }[status()]
               }
@@ -256,13 +271,24 @@ export function ConversationSidebar() {
           value={status()}
           disabled={!!state.pending}
           onChange={(event) => {
-            const status = statuses.find((status) => status === event.currentTarget.value)
-            if (status) void update(props.group.root, { status })
+            const value = event.currentTarget.value
+            if (value === "ready") {
+              void update(props.group.root, { ready: true })
+              return
+            }
+            const status = statuses.find((status) => status === value)
+            if (status) void update(props.group.root, { status, ready: false })
           }}
         >
-          <For each={statuses}>
+          <option value="unclassified">{language.t("conversations.status.unclassified")}</option>
+          <option value="idea">{language.t("conversations.status.idea")}</option>
+          <For each={boardStatuses.filter((status) => status !== "merged")}>
             {(status) => <option value={status}>{language.t(`conversations.status.${status}`)}</option>}
           </For>
+          <option value="ready">{language.t("conversations.status.ready")}</option>
+          <option value="blocked">{language.t("conversations.status.blocked")}</option>
+          <option value="shelved">{language.t("conversations.status.shelved")}</option>
+          <option value="merged">{language.t("conversations.status.merged")}</option>
         </select>
       </span>
     )
@@ -408,7 +434,7 @@ export function ConversationSidebar() {
     )
   }
 
-  function BoardColumn(props: { status: (typeof statuses)[number]; groups: ConversationGroup[] }) {
+  function BoardColumn(props: { status: (typeof boardStatuses)[number]; groups: ConversationGroup[] }) {
     const droppable = useDroppable({
       get id() {
         return `board-column:${props.status}`
@@ -483,15 +509,15 @@ export function ConversationSidebar() {
                 : typeof source.group === "string"
                   ? source.group
                   : undefined
-              if (!next || !statuses.includes(next as (typeof statuses)[number])) return
+              if (!next || !boardStatuses.includes(next as (typeof boardStatuses)[number])) return
               if (next === source.initialGroup) return
               const group = boardGroups().find((item) => item.root.id === String(source.id))
               if (!group || (group.workflow.status ?? "unclassified") === next) return
-              void update(group.root, { status: next as (typeof statuses)[number] })
+              void update(group.root, { status: next as (typeof boardStatuses)[number], ready: false })
             }}
           >
             <div class="conversation-columns">
-              <For each={statuses}>
+              <For each={boardStatuses}>
                 {(status) => (
                   <BoardColumn
                     status={status}
@@ -558,7 +584,16 @@ export function ConversationSidebar() {
             <For each={pinned()} fallback={<p class="conversation-empty">{language.t("conversations.noPinned")}</p>}>
               {(group) => <Row group={group} />}
             </For>
-            <h2>{language.t("conversations.projects")}</h2>
+            <div class="conversation-section-header">
+              <h2>{language.t("conversations.projects")}</h2>
+              <button
+                onClick={addProject}
+                aria-label={language.t("home.project.add")}
+                title={language.t("home.project.add")}
+              >
+                +
+              </button>
+            </div>
             <For each={projects()}>
               {([directory, items]) => (
                 <section>

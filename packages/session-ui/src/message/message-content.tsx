@@ -725,6 +725,28 @@ export function AssistantTextContent(props: {
       .join(" \u00B7 ")
   })
 
+  const historicalTool = createMemo(() => {
+    const prefix = "Historical Codex tool record (already executed):\n"
+    if (!props.text.startsWith(prefix)) return
+    try {
+      const value: unknown = JSON.parse(props.text.slice(prefix.length))
+      if (!value || typeof value !== "object") return
+      const record = value as Record<string, unknown>
+      const detail =
+        typeof record.output === "string"
+          ? record.output
+          : record.output === undefined
+            ? JSON.stringify(record.input ?? record.name ?? "", null, 2)
+            : JSON.stringify(record.output, null, 2)
+      return {
+        name: typeof record.name === "string" ? record.name : String(record.type ?? "tool"),
+        detail,
+      }
+    } catch {
+      return
+    }
+  })
+
   const [copied, setCopied] = createSignal(false)
 
   const copy = async () => {
@@ -737,7 +759,27 @@ export function AssistantTextContent(props: {
     <Show when={props.text}>
       <div data-component="text-part" data-timeline-part-id={props.id}>
         <div data-slot="text-part-body">
-          <PacedMarkdown text={props.text} cacheKey={props.id} streaming={props.message.time.completed === undefined} />
+          <Show
+            when={historicalTool()}
+            fallback={
+              <PacedMarkdown
+                text={props.text}
+                cacheKey={props.id}
+                streaming={props.message.time.completed === undefined}
+              />
+            }
+          >
+            {(tool) => (
+              <details class="rounded-md border border-border-weak-base bg-background-weak px-3 py-2 text-12-regular text-text-weak">
+                <summary class="cursor-pointer select-none">
+                  {i18n.t("ui.message.historicalTool", { name: tool().name })}
+                </summary>
+                <pre class="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-words font-mono text-11-regular">
+                  {tool().detail}
+                </pre>
+              </details>
+            )}
+          </Show>
         </div>
         <Show when={props.showCopy}>
           <div data-slot="text-part-copy-wrapper" data-interrupted={interrupted() ? "" : undefined}>
