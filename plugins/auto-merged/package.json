@@ -1,0 +1,6 @@
+{
+  "name": "opencode-custom-auto-merged",
+  "private": true,
+  "type": "module",
+  "main": "index.ts"
+}

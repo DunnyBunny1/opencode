@@ -1,6 +1,8 @@
 import { createEffect, createMemo, For, onCleanup, Show, startTransition } from "solid-js"
 import { createStore } from "solid-js/store"
 import { skipToken, useQuery, useQueryClient } from "@tanstack/solid-query"
+import { DragDropProvider, PointerSensor, useDraggable, useDroppable } from "@dnd-kit/solid"
+import { Feedback, PointerActivationConstraints } from "@dnd-kit/dom"
 import { Schema } from "effect"
 import { Icon } from "@opencode/ui/icon"
 import { ResizeHandle } from "@opencode/ui/resize-handle"
@@ -42,7 +44,14 @@ export function ConversationSidebar() {
     history: false,
     collapsed: {},
   })
-  const [state, setState] = createStore({ search: "", board: false, pending: "" })
+  const [state, setState] = createStore({
+    search: "",
+    board: false,
+    pending: "",
+    editing: "",
+    editTitle: "",
+    renaming: "",
+  })
   const connection = createMemo(() => {
     const route = layout.route()
     const key = route.type === "session" ? route.server : layout.home.selection().server
@@ -62,6 +71,7 @@ export function ConversationSidebar() {
         : skipToken,
       select: (sessions: SessionInfo[]) => () => sessions,
       staleTime: 30_000,
+      refetchInterval: 30_000,
       refetchOnWindowFocus: true,
     }
   })
@@ -118,9 +128,20 @@ export function ConversationSidebar() {
     })
   }
 
+  const remember = (session: SessionInfo) => {
+    const conn = connection()
+    context()?.data.session.remember(session)
+    if (conn)
+      cache.setQueryData<SessionInfo[]>(["conversation-sidebar", conn], (sessions) =>
+        sessions?.map((item) => (item.id === session.id ? session : item)),
+      )
+  }
+
   const update = async (session: SessionInfo, change: typeof Workflow.Type) => {
     const ctx = context()
     if (!ctx) return
+    const nextWorkflow = { ...workflow(session), ...change }
+    remember({ ...session, metadata: { ...session.metadata, customWorkflow: nextWorkflow } })
     setState("pending", session.id)
     try {
       const current = await ctx.sdk.api.session.get({ sessionID: session.id })
@@ -128,13 +149,32 @@ export function ConversationSidebar() {
         sessionID: session.id,
         metadata: { ...current.metadata, customWorkflow: { ...workflow(current), ...change } },
       })
-      const next = await ctx.sdk.api.session.get({ sessionID: session.id })
-      ctx.data.session.remember(next)
+      remember(await ctx.sdk.api.session.get({ sessionID: session.id }))
       await cache.invalidateQueries({ queryKey: ["conversation-sidebar", connection()] })
     } catch (error) {
+      remember(session)
       showToast({ title: language.t("common.requestFailed"), description: String(error) })
     } finally {
       setState("pending", "")
+    }
+  }
+
+  const rename = async (session: SessionInfo) => {
+    const ctx = context()
+    const title = state.editTitle.trim()
+    setState("editing", "")
+    if (!ctx || !title || title === session.title) return
+    setState("renaming", session.id)
+    remember({ ...session, title })
+    try {
+      await ctx.sdk.api.session.update({ sessionID: session.id, title })
+      remember(await ctx.sdk.api.session.get({ sessionID: session.id }))
+      await cache.invalidateQueries({ queryKey: ["conversation-sidebar", connection()] })
+    } catch (error) {
+      remember(session)
+      showToast({ title: language.t("common.requestFailed"), description: String(error) })
+    } finally {
+      setState("renaming", "")
     }
   }
 
@@ -194,21 +234,57 @@ export function ConversationSidebar() {
   }
 
   function Row(props: { group: ConversationGroup }) {
+    let opening: ReturnType<typeof setTimeout> | undefined
+    onCleanup(() => clearTimeout(opening))
     const active = () => {
       const route = layout.route()
       return route.type === "session" && props.group.root.id === route.sessionId
     }
+    const startRename = () => {
+      clearTimeout(opening)
+      setState({ editing: props.group.root.id, editTitle: props.group.root.title ?? "" })
+    }
     return (
       <div class="conversation-item">
         <div class="conversation-row" classList={{ active: active() }}>
-          <button
-            class="conversation-title"
-            dir="auto"
-            title={props.group.root.title}
-            onClick={() => open(props.group.root)}
+          <Show
+            when={state.editing === props.group.root.id}
+            fallback={
+              <button
+                class="conversation-title"
+                dir="auto"
+                title={props.group.root.title}
+                onClick={(event) => {
+                  if (event.detail > 1) return
+                  clearTimeout(opening)
+                  opening = setTimeout(() => open(props.group.root), 220)
+                }}
+                onDblClick={startRename}
+              >
+                {props.group.root.title || language.t("command.session.new")}
+              </button>
+            }
           >
-            {props.group.root.title || language.t("command.session.new")}
-          </button>
+            <input
+              class="conversation-title conversation-rename"
+              dir="auto"
+              aria-label={language.t("conversations.rename", { title: props.group.root.title ?? "" })}
+              value={state.editTitle}
+              ref={(element) => setTimeout(() => element.select())}
+              onInput={(event) => setState("editTitle", event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  void rename(props.group.root)
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault()
+                  setState("editing", "")
+                }
+              }}
+              onBlur={() => void rename(props.group.root)}
+            />
+          </Show>
           <Status group={props.group} />
           <button
             class="conversation-pin"
@@ -220,6 +296,58 @@ export function ConversationSidebar() {
           </button>
         </div>
       </div>
+    )
+  }
+
+  function BoardCard(props: { group: ConversationGroup }) {
+    const draggable = useDraggable({
+      get id() {
+        return props.group.root.id
+      },
+    })
+    return (
+      <article
+        ref={draggable.ref}
+        role="listitem"
+        class="conversation-board-card"
+        classList={{ dragging: draggable.isDragSource() }}
+        aria-label={props.group.root.title}
+      >
+        <Row group={props.group} />
+        <div class="conversation-board-meta">
+          <small>{props.group.directory.split(/[\\/]/).at(-1)}</small>
+          <span
+            ref={draggable.handleRef}
+            class="conversation-board-grip"
+            aria-hidden="true"
+            title={language.t("conversations.drag")}
+          >
+            ⠿
+          </span>
+        </div>
+      </article>
+    )
+  }
+
+  function BoardColumn(props: { status: (typeof statuses)[number]; groups: ConversationGroup[] }) {
+    const droppable = useDroppable({
+      get id() {
+        return `board-column:${props.status}`
+      },
+    })
+    return (
+      <section
+        ref={droppable.ref}
+        aria-label={language.t(`conversations.status.${props.status}`)}
+        classList={{ "drop-target": droppable.isDropTarget() }}
+      >
+        <h2>{language.t(`conversations.status.${props.status}`)}</h2>
+        <div role="list" class="conversation-board-dropzone">
+          <For each={props.groups} fallback={<p class="conversation-empty">{language.t("conversations.dropHere")}</p>}>
+            {(group) => <BoardCard group={group} />}
+          </For>
+        </div>
+      </section>
     )
   }
 
@@ -255,23 +383,41 @@ export function ConversationSidebar() {
               {language.t("conversations.history")}
             </label>
           </div>
-          <div class="conversation-columns">
-            <For each={statuses}>
-              {(status) => (
-                <section>
-                  <h2>{language.t(`conversations.status.${status}`)}</h2>
-                  <For each={groups().filter((group) => (group.workflow.status ?? "unclassified") === status)}>
-                    {(group) => (
-                      <article>
-                        <Row group={group} />
-                        <small>{group.directory.split(/[\\/]/).at(-1)}</small>
-                      </article>
-                    )}
-                  </For>
-                </section>
-              )}
-            </For>
-          </div>
+          <DragDropProvider
+            sensors={(defaults) => [
+              ...defaults.filter((sensor) => sensor !== PointerSensor),
+              PointerSensor.configure({
+                activationConstraints: [new PointerActivationConstraints.Distance({ value: 4 })],
+              }),
+            ]}
+            plugins={(defaults) => [
+              ...defaults.filter((plugin) => plugin !== Feedback),
+              Feedback.configure({ dropAnimation: null }),
+            ]}
+            onDragEnd={(event) => {
+              const source = event.operation.source
+              const target = event.operation.target
+              if (event.canceled || !source || !target) return
+              const column = String(target.id)
+              if (!column.startsWith("board-column:")) return
+              const next = column.slice(13)
+              if (!statuses.includes(next as (typeof statuses)[number])) return
+              const group = groups().find((item) => item.root.id === String(source.id))
+              if (!group || (group.workflow.status ?? "unclassified") === next) return
+              void update(group.root, { status: next as (typeof statuses)[number] })
+            }}
+          >
+            <div class="conversation-columns">
+              <For each={statuses}>
+                {(status) => (
+                  <BoardColumn
+                    status={status}
+                    groups={groups().filter((group) => (group.workflow.status ?? "unclassified") === status)}
+                  />
+                )}
+              </For>
+            </div>
+          </DragDropProvider>
         </Dialog>
       ),
       () => setState("board", false),

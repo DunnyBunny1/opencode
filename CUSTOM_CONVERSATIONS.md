@@ -6,7 +6,16 @@
 - Unpinned history defaults to the last seven days. Search covers all indexed titles and paths;
   **Show older than seven days** includes archived/older entries. Transcript-body search is not implemented.
 - Click a row's status icon to choose Unclassified, Idea, In progress, Blocked, Ready,
-  Shelved, Done, or Merged. Status is manual; it does not infer GitHub PR state.
+  Shelved, Done, or Merged. Double-click a title to rename it inline.
+- `plugins/auto-merged` polls each loaded project every 30 seconds, checking recent root
+  sessions with `gh pr list --head <branch> --state merged`. A verified merged PR sets Merged
+  and records its number/time. It never infers merge from chat completion, never runs on a
+  default branch, preserves deliberate Idea/Blocked/Shelved choices, and does not re-apply the
+  same merge after a manual reclassification. It requires an authenticated `gh`; failures are
+  ignored. The sidebar refetches every 30 seconds, so the board reflects it automatically.
+  Manual status remains available and takes effect immediately.
+- Board cards are draggable between status columns. Dropping updates the same durable
+  status metadata; within-column ordering is not persisted.
 - Hover/focus a row to pin/unpin it. Pins and statuses live in native session metadata
   (`customWorkflow`), so the sidebar and board use the same data.
 - **Board** opens status columns; the status chooser moves a card between columns.

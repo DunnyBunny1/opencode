@@ -14,6 +14,8 @@ export const statuses = [
 export const Workflow = Schema.Struct({
   status: Schema.optional(Schema.Literals(statuses)),
   pinned: Schema.optional(Schema.Boolean),
+  pullRequest: Schema.optional(Schema.Number),
+  mergedAt: Schema.optional(Schema.String),
 })
 
 const Codex = Schema.Struct({ updatedAt: Schema.Number, sidebarDirectory: Schema.optional(Schema.String) })

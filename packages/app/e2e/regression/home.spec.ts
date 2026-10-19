@@ -62,6 +62,51 @@ test("conversation sidebar keeps pins, searches old history, and persists board 
   await expect(page).toHaveURL(/ses_sidebar_recent$/)
 })
 
+test("board cards drag between statuses and conversation titles rename on double click", async ({ page }) => {
+  const now = Date.now()
+  await mockWorkspace(page, {
+    name: "Board",
+    sessions: [{ id: "ses_board_card", title: "Current work", time: { created: now, updated: now } }],
+  })
+  await page.goto("/")
+  const sidebar = page.getByRole("complementary", { name: "Conversations" })
+  await sidebar.getByRole("button", { name: "Board", exact: true }).click()
+  const board = page.getByRole("dialog", { name: "Board", exact: true })
+  const progress = board.getByRole("region", { name: "In progress", exact: true })
+  const card = board.getByRole("listitem", { name: "Current work", exact: true })
+  await expect(card).toBeVisible()
+  const target = progress.locator(".conversation-board-dropzone")
+  const sourceBox = await card.locator(".conversation-board-grip").boundingBox()
+  const targetBox = await target.boundingBox()
+  expect(sourceBox).not.toBeNull()
+  expect(targetBox).not.toBeNull()
+  const moved = page.waitForRequest(
+    (request) => request.method() === "PATCH" && request.url().includes("ses_board_card"),
+  )
+  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2 + 12, sourceBox!.y + sourceBox!.height / 2 + 12, {
+    steps: 4,
+  })
+  await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 10 })
+  await page.mouse.up()
+  expect((await moved).postDataJSON()).toMatchObject({ metadata: { customWorkflow: { status: "in-progress" } } })
+  await expect(progress.getByRole("listitem", { name: "Current work", exact: true })).toBeVisible()
+  await board.getByRole("button", { name: "Close", exact: true }).click()
+  await expect(board).toBeHidden()
+
+  const renamed = page.waitForRequest(
+    (request) => request.method() === "PATCH" && request.url().includes("ses_board_card"),
+  )
+  await sidebar.getByRole("button", { name: "Current work", exact: true }).dblclick()
+  const input = sidebar.getByRole("textbox", { name: "Rename Current work", exact: true })
+  await expect(input).toBeFocused()
+  await input.fill("Renamed card")
+  await input.press("Enter")
+  expect((await renamed).postDataJSON()).toEqual({ title: "Renamed card" })
+  await expect(sidebar.getByRole("button", { name: "Renamed card", exact: true })).toBeVisible()
+})
+
 const row = (page: Page, title: string) =>
   page.locator('[data-component="home-session-row"]').filter({ hasText: title })
 

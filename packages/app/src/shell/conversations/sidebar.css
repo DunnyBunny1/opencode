@@ -174,18 +174,49 @@
   background: color-mix(in srgb, currentColor 3%, transparent);
   border-radius: 8px;
   padding: 8px;
+  border: 1px solid transparent;
+}
+.conversation-columns > section.drop-target {
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
 .conversation-columns h2 {
   padding: 4px 6px 12px;
 }
-.conversation-columns article {
+.conversation-board-dropzone {
+  min-height: 72px;
+}
+.conversation-board-card {
   border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
   border-radius: 8px;
   margin-bottom: 8px;
   padding-bottom: 6px;
+  cursor: grab;
+  touch-action: none;
 }
-.conversation-columns article > small {
-  padding-inline-start: 10px;
+.conversation-board-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+.conversation-board-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 10px;
+}
+.conversation-board-grip {
+  cursor: grab;
+  opacity: 0.45;
+  letter-spacing: 1px;
+}
+.conversation-board-card.dragging .conversation-board-grip {
+  cursor: grabbing;
+}
+.conversation-rename {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 4px;
+  padding: 0 6px;
+  background: transparent;
 }
 @media (max-width: 767px) {
   .conversation-sidebar,
