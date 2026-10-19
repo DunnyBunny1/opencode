@@ -4,7 +4,7 @@ import { enableCompileCache } from "node:module"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 import { app } from "electron"
-import { APP_ID, APP_NAME } from "../constants"
+import { APP_ID, APP_NAME, CUSTOM } from "../constants"
 
 const testOnboarding = process.env.OPENCODE_TEST_ONBOARDING === "1"
 
@@ -19,6 +19,21 @@ export function configureApplication() {
   } catch {}
 
   process.env.OPENCODE_DISABLE_EMBEDDED_WEB_UI = "true"
+
+  // Keep custom service election and migrations away from the installed application's live data.
+  if (CUSTOM) {
+    const root = process.env.OPENCODE_CUSTOM_ROOT ?? path.join(homedir(), ".local", "share", "opencode-custom")
+    for (const [key, directory] of Object.entries({
+      XDG_DATA_HOME: "data",
+      XDG_CONFIG_HOME: "config",
+      XDG_CACHE_HOME: "cache",
+      XDG_STATE_HOME: "state",
+    })) {
+      process.env[key] = path.join(root, directory)
+      mkdirSync(process.env[key], { recursive: true })
+    }
+    process.env.OPENCODE_DB = path.join(root, "data", "opencode", "opencode.db")
+  }
 
   app.setName(APP_NAME)
   app.setAppUserModelId(APP_ID)

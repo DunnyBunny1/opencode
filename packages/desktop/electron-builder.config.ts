@@ -216,6 +216,17 @@ export function getConfig() {
   const appId = APP_IDS[channel]
   const base = getBase(appId)
 
+  if (process.env.OPENCODE_CUSTOM === "1") {
+    if (channel !== "dev") throw new Error("Custom builds require the dev channel (updates disabled)")
+    return {
+      ...base,
+      appId: "ai.opencode.desktop.custom",
+      productName: "OpenCode Custom",
+      protocols: [],
+      mac: { ...base.mac, identity: null, notarize: false },
+    } satisfies Configuration
+  }
+
   switch (channel) {
     case "dev": {
       return {

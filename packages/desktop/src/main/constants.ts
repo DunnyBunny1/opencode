@@ -1,5 +1,7 @@
 import { app } from "electron"
 
+export const CUSTOM = import.meta.env.OPENCODE_CUSTOM === true
+
 type Channel = "local" | "dev" | "beta" | "prod"
 
 const raw = import.meta.env.OPENCODE_CHANNEL
@@ -21,6 +23,10 @@ const appIDs: Record<string, string> = {
 }
 
 // Local renderer/server mode keeps the dev application identity.
-export const APP_NAME = app.isPackaged ? appNames[CHANNEL] : "OpenCode Dev"
+export const APP_NAME = CUSTOM ? "OpenCode Custom" : app.isPackaged ? appNames[CHANNEL] : "OpenCode Dev"
 
-export const APP_ID = app.isPackaged ? appIDs[CHANNEL] : "ai.opencode.desktop.dev"
+export const APP_ID = CUSTOM
+  ? "ai.opencode.desktop.custom"
+  : app.isPackaged
+    ? appIDs[CHANNEL]
+    : "ai.opencode.desktop.dev"

@@ -13,7 +13,10 @@ await $`bun ./scripts/copy-icons.ts ${channel}`
 
 await $`bun ./scripts/copy-metainfo.ts ${channel}`
 
-if (channel === "dev") await downloadCliToResources()
+if (Bun.env.OPENCODE_CUSTOM === "1") {
+  if (!Bun.env.OPENCODE_CLI_DIST) throw new Error("Custom builds require a fork-built OPENCODE_CLI_DIST")
+  await copyBuiltCliToResources(Bun.env.OPENCODE_CLI_DIST)
+} else if (channel === "dev") await downloadCliToResources()
 
 if ((channel === "beta" || channel === "prod") && Bun.env.OPENCODE_CLI_DIST) {
   await copyBuiltCliToResources(Bun.env.OPENCODE_CLI_DIST)
