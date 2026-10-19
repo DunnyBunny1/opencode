@@ -24,7 +24,7 @@ export function workflow(session: SessionInfo): typeof Workflow.Type {
   return Option.getOrElse(Schema.decodeUnknownOption(Workflow)(session.metadata?.customWorkflow), () => ({}))
 }
 
-export function conversationGroups(sessions: SessionInfo[], search: string, history: boolean) {
+export function conversationGroups(sessions: SessionInfo[], search: string, history: boolean, board = false) {
   const needle = search.trim().toLocaleLowerCase()
 
   return sessions
@@ -42,7 +42,8 @@ export function conversationGroups(sessions: SessionInfo[], search: string, hist
       if (needle)
         return `${group.root.title ?? ""} ${group.root.location.directory}`.toLocaleLowerCase().includes(needle)
       if (group.workflow.pinned) return true
-      if (history) return true
+      // The sidebar is the full archive; the board is the active work view.
+      if (!board || history) return true
 
       return !group.root.time.archived && group.updated >= Date.now() - 7 * 24 * 60 * 60 * 1000
     })

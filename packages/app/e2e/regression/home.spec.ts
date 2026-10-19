@@ -33,11 +33,11 @@ test("conversation sidebar keeps pins, searches old history, and persists board 
   })
   await page.goto("/")
   const sidebar = page.getByRole("complementary", { name: "Conversations" })
-  await expect(sidebar.getByRole("button", { name: "Pinned history", exact: true })).toBeVisible()
-  await expect(sidebar.getByRole("button", { name: "Current work", exact: true })).toBeVisible()
-  await expect(sidebar.getByRole("button", { name: "Old idea", exact: true })).toHaveCount(0)
+  await expect(sidebar.getByRole("link", { name: "Pinned history", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("link", { name: "Current work", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("link", { name: "Old idea", exact: true })).toBeVisible()
   await sidebar.getByRole("searchbox").fill("Old idea")
-  await expect(sidebar.getByRole("button", { name: "Old idea", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("link", { name: "Old idea", exact: true })).toBeVisible()
   await sidebar.getByRole("searchbox").fill("")
   const saved = page.waitForRequest(
     (request) => request.method() === "PATCH" && request.url().includes("ses_sidebar_recent"),
@@ -51,14 +51,19 @@ test("conversation sidebar keeps pins, searches old history, and persists board 
   await sidebar.getByRole("button", { name: "Board", exact: true }).press("Enter")
   const board = page.getByRole("dialog", { name: "Board", exact: true })
   await expect(board.getByRole("combobox", { name: "Status for Current work" })).toHaveValue("merged")
+  await expect(board.getByRole("listitem", { name: "Old idea", exact: true })).toHaveCount(0)
   await page.keyboard.press("Escape")
   await expect(sidebar.getByRole("button", { name: "Board", exact: true })).toBeFocused()
-  await sidebar.getByRole("button", { name: "Pin conversation", exact: true }).click()
+  await sidebar
+    .locator(".conversation-row")
+    .filter({ hasText: "Current work" })
+    .getByRole("button", { name: "Pin conversation", exact: true })
+    .click()
   await expect(sidebar.getByRole("button", { name: "Unpin conversation", exact: true })).toHaveCount(2)
   await page.reload()
   await expect(sidebar.getByRole("button", { name: "Unpin conversation", exact: true })).toHaveCount(2)
   await expect(sidebar.getByRole("combobox", { name: "Status for Current work" })).toHaveValue("merged")
-  await sidebar.getByRole("button", { name: "Current work", exact: true }).click()
+  await sidebar.getByRole("link", { name: "Current work", exact: true }).click()
   await expect(page).toHaveURL(/ses_sidebar_recent$/)
 })
 
@@ -76,18 +81,16 @@ test("board cards drag between statuses and conversation titles rename on double
   const card = board.getByRole("listitem", { name: "Current work", exact: true })
   await expect(card).toBeVisible()
   const target = progress.locator(".conversation-board-dropzone")
-  const sourceBox = await card.locator(".conversation-board-grip").boundingBox()
+  const sourceBox = await card.boundingBox()
   const targetBox = await target.boundingBox()
   expect(sourceBox).not.toBeNull()
   expect(targetBox).not.toBeNull()
   const moved = page.waitForRequest(
     (request) => request.method() === "PATCH" && request.url().includes("ses_board_card"),
   )
-  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2)
+  await page.mouse.move(sourceBox!.x + 20, sourceBox!.y + 16)
   await page.mouse.down()
-  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2 + 12, sourceBox!.y + sourceBox!.height / 2 + 12, {
-    steps: 4,
-  })
+  await page.mouse.move(sourceBox!.x + 32, sourceBox!.y + 28, { steps: 4 })
   await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 10 })
   await page.mouse.up()
   expect((await moved).postDataJSON()).toMatchObject({ metadata: { customWorkflow: { status: "in-progress" } } })
@@ -98,13 +101,13 @@ test("board cards drag between statuses and conversation titles rename on double
   const renamed = page.waitForRequest(
     (request) => request.method() === "PATCH" && request.url().includes("ses_board_card"),
   )
-  await sidebar.getByRole("button", { name: "Current work", exact: true }).dblclick()
+  await sidebar.getByRole("link", { name: "Current work", exact: true }).dblclick()
   const input = sidebar.getByRole("textbox", { name: "Rename Current work", exact: true })
   await expect(input).toBeFocused()
   await input.fill("Renamed card")
   await input.press("Enter")
   expect((await renamed).postDataJSON()).toEqual({ title: "Renamed card" })
-  await expect(sidebar.getByRole("button", { name: "Renamed card", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("link", { name: "Renamed card", exact: true })).toBeVisible()
 })
 
 const row = (page: Page, title: string) =>
@@ -123,7 +126,7 @@ test("the session context menu renames, exports, and deletes a Home session", as
   await openHome(page)
   const sidebar = page.getByRole("complementary", { name: "Conversations" })
   await sidebar.getByRole("checkbox", { name: "Show older than seven days" }).check()
-  await expect(sidebar.getByRole("button", { name: fixture.expected.targetTitle, exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("link", { name: fixture.expected.targetTitle, exact: true })).toBeVisible()
   const target = row(page, fixture.expected.targetTitle)
   await expect(target).toBeVisible()
 
@@ -155,7 +158,7 @@ test("the session context menu renames, exports, and deletes a Home session", as
   await title.press("Enter")
   expect((await renamed).postDataJSON()).toEqual({ title: "Renamed from Home" })
   const renamedRow = row(page, "Renamed from Home")
-  await expect(sidebar.getByRole("button", { name: "Renamed from Home", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("link", { name: "Renamed from Home", exact: true })).toBeVisible()
   await renamedRow.click()
   await expect(page).toHaveURL(new RegExp(`/session/${fixture.targetID}$`))
   await expect(page.locator('[data-slot="titlebar-tabs"] a').filter({ hasText: "Renamed from Home" })).toBeVisible()
@@ -182,7 +185,7 @@ test("the session context menu renames, exports, and deletes a Home session", as
   await expect(
     page
       .getByRole("complementary", { name: "Conversations" })
-      .getByRole("button", { name: "Renamed from Home", exact: true }),
+      .getByRole("link", { name: "Renamed from Home", exact: true }),
   ).toHaveCount(0)
 })
 

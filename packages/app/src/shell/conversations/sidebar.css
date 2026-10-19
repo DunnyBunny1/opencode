@@ -64,12 +64,20 @@
 }
 .conversation-title {
   flex: 1;
+  display: flex;
+  align-items: center;
   text-align: start;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   height: 34px;
   min-width: 0;
+  cursor: pointer;
+}
+.conversation-title:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: -1px;
+  border-radius: 4px;
 }
 .conversation-pin {
   opacity: 0;
@@ -79,6 +87,36 @@
 .conversation-row:hover .conversation-pin,
 .conversation-row:focus-within .conversation-pin {
   opacity: 0.6;
+}
+.conversation-spinner,
+.conversation-unread,
+.conversation-attention {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.conversation-spinner {
+  border: 1.5px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  animation: conversation-spin 0.8s linear infinite;
+}
+.conversation-unread {
+  background: #4c9aff;
+}
+.conversation-attention {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5a623;
+  color: #1a1a1a;
+  font-size: 8px;
+  font-weight: 700;
+}
+@keyframes conversation-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .conversation-status {
   position: relative;

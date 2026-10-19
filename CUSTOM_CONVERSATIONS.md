@@ -3,8 +3,12 @@
 ## UI
 
 - The desktop-width conversation sidebar shows pins first, then expandable folders.
-- Unpinned history defaults to the last seven days. Search covers all indexed titles and paths;
-  **Show older than seven days** includes archived/older entries. Transcript-body search is not implemented.
+- The sidebar shows all history, newest first, with pins first and then project folders. Search
+  covers all indexed titles and paths. Transcript-body search is not implemented.
+- The board is the active-work view: it shows the last seven days by default; **Show older than
+  seven days** widens it. Idea chats stay in the sidebar and do not appear on the board.
+- Each row shows a running spinner, an amber **!** for a pending permission/form, or a blue dot
+  for unread activity after completion.
 - Click a row's status icon to choose Unclassified, Idea, In progress, Blocked, Ready,
   Shelved, Done, or Merged. Double-click a title to rename it inline.
 - `plugins/auto-merged` polls each loaded project every 30 seconds, checking recent root

@@ -1,7 +1,8 @@
 import { createEffect, createMemo, For, onCleanup, Show, startTransition } from "solid-js"
 import { createStore } from "solid-js/store"
 import { skipToken, useQuery, useQueryClient } from "@tanstack/solid-query"
-import { DragDropProvider, PointerSensor, useDraggable, useDroppable } from "@dnd-kit/solid"
+import { DragDropProvider, PointerSensor, useDroppable } from "@dnd-kit/solid"
+import { isSortable, useSortable } from "@dnd-kit/solid/sortable"
 import { Feedback, PointerActivationConstraints } from "@dnd-kit/dom"
 import { Schema } from "effect"
 import { Icon } from "@opencode/ui/icon"
@@ -19,6 +20,7 @@ import { useTabs } from "@/shell/tabs/tabs"
 import { useCommand } from "@/shell/commands/command"
 import { showToast } from "@/shell/notifications/toast"
 import { listAllSessions } from "@/session/list"
+import { sessionFormRequest, sessionPermissionRequest } from "@/session/requests/session-request-tree"
 import { conversationGroups, statuses, workflow, type ConversationGroup, type Workflow } from "./model"
 import "./sidebar.css"
 
@@ -94,7 +96,40 @@ export function ConversationSidebar() {
       }),
     )
   })
-  const groups = createMemo(() => conversationGroups(sessions(), state.search, saved.history))
+  const activity = createMemo(() => {
+    const ctx = context()
+    const result = new Map<string, { loading: boolean; attention: boolean; unread: boolean }>()
+    if (!ctx) return result
+    for (const root of sessions()) {
+      const family = [...new Set([root.id, ...ctx.data.session.family(root.id)])]
+      const familySessions = family.flatMap((id) => {
+        const info = ctx.data.session.get(id)
+        return info ? [info] : []
+      })
+      const attention =
+        !!sessionPermissionRequest(familySessions, ctx.data.session.permission.list, root.id) ||
+        !!sessionFormRequest(familySessions, ctx.data.session.form.list, root.id)
+      const loading =
+        !attention &&
+        family.some(
+          (id) =>
+            ctx.data.session.status(id) === "running" ||
+            ctx.data.session.pending.list(id).some((item) => item.type !== "synthetic"),
+        )
+      result.set(root.id, {
+        attention,
+        loading,
+        unread: !attention && !loading && ctx.notification.session.unread(root.id, root),
+      })
+    }
+    return result
+  })
+  const groups = createMemo(() => conversationGroups(sessions(), state.search, true))
+  const boardGroups = createMemo(() =>
+    conversationGroups(sessions(), state.search, saved.history, true).filter(
+      (group) => (group.workflow.status ?? "unclassified") !== "idea",
+    ),
+  )
   const pinned = createMemo(() => groups().filter((group) => group.workflow.pinned))
   const projects = createMemo(() => {
     const groupsByDirectory = Map.groupBy(
@@ -250,8 +285,10 @@ export function ConversationSidebar() {
           <Show
             when={state.editing === props.group.root.id}
             fallback={
-              <button
+              <span
                 class="conversation-title"
+                role="link"
+                tabIndex={0}
                 dir="auto"
                 title={props.group.root.title}
                 onClick={(event) => {
@@ -260,9 +297,14 @@ export function ConversationSidebar() {
                   opening = setTimeout(() => open(props.group.root), 220)
                 }}
                 onDblClick={startRename}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return
+                  event.preventDefault()
+                  open(props.group.root)
+                }}
               >
                 {props.group.root.title || language.t("command.session.new")}
-              </button>
+              </span>
             }
           >
             <input
@@ -285,6 +327,41 @@ export function ConversationSidebar() {
               onBlur={() => void rename(props.group.root)}
             />
           </Show>
+          <Show when={activity().get(props.group.root.id)}>
+            {(state) => (
+              <Show
+                when={state().attention}
+                fallback={
+                  <Show
+                    when={state().loading}
+                    fallback={
+                      <Show when={state().unread}>
+                        <span
+                          class="conversation-unread"
+                          aria-label={language.t("conversations.unread")}
+                          title={language.t("conversations.unread")}
+                        />
+                      </Show>
+                    }
+                  >
+                    <span
+                      class="conversation-spinner"
+                      aria-label={language.t("conversations.running")}
+                      title={language.t("conversations.running")}
+                    />
+                  </Show>
+                }
+              >
+                <span
+                  class="conversation-attention"
+                  aria-label={language.t("conversations.needsInput")}
+                  title={language.t("conversations.needsInput")}
+                >
+                  !
+                </span>
+              </Show>
+            )}
+          </Show>
           <Status group={props.group} />
           <button
             class="conversation-pin"
@@ -299,29 +376,31 @@ export function ConversationSidebar() {
     )
   }
 
-  function BoardCard(props: { group: ConversationGroup }) {
-    const draggable = useDraggable({
+  function BoardCard(props: { group: ConversationGroup; index: number }) {
+    const status = () => props.group.workflow.status ?? "unclassified"
+    const sortable = useSortable({
       get id() {
         return props.group.root.id
+      },
+      get index() {
+        return props.index
+      },
+      get group() {
+        return status()
       },
     })
     return (
       <article
-        ref={draggable.ref}
+        ref={sortable.ref}
         role="listitem"
         class="conversation-board-card"
-        classList={{ dragging: draggable.isDragSource() }}
+        classList={{ dragging: sortable.isDragSource() }}
         aria-label={props.group.root.title}
       >
         <Row group={props.group} />
         <div class="conversation-board-meta">
           <small>{props.group.directory.split(/[\\/]/).at(-1)}</small>
-          <span
-            ref={draggable.handleRef}
-            class="conversation-board-grip"
-            aria-hidden="true"
-            title={language.t("conversations.drag")}
-          >
+          <span class="conversation-board-grip" aria-hidden="true" title={language.t("conversations.drag")}>
             ⠿
           </span>
         </div>
@@ -344,7 +423,7 @@ export function ConversationSidebar() {
         <h2>{language.t(`conversations.status.${props.status}`)}</h2>
         <div role="list" class="conversation-board-dropzone">
           <For each={props.groups} fallback={<p class="conversation-empty">{language.t("conversations.dropHere")}</p>}>
-            {(group) => <BoardCard group={group} />}
+            {(group, index) => <BoardCard group={group} index={index()} />}
           </For>
         </div>
       </section>
@@ -397,12 +476,16 @@ export function ConversationSidebar() {
             onDragEnd={(event) => {
               const source = event.operation.source
               const target = event.operation.target
-              if (event.canceled || !source || !target) return
+              if (event.canceled || !isSortable(source) || !target) return
               const column = String(target.id)
-              if (!column.startsWith("board-column:")) return
-              const next = column.slice(13)
-              if (!statuses.includes(next as (typeof statuses)[number])) return
-              const group = groups().find((item) => item.root.id === String(source.id))
+              const next = column.startsWith("board-column:")
+                ? column.slice(13)
+                : typeof source.group === "string"
+                  ? source.group
+                  : undefined
+              if (!next || !statuses.includes(next as (typeof statuses)[number])) return
+              if (next === source.initialGroup) return
+              const group = boardGroups().find((item) => item.root.id === String(source.id))
               if (!group || (group.workflow.status ?? "unclassified") === next) return
               void update(group.root, { status: next as (typeof statuses)[number] })
             }}
@@ -412,7 +495,7 @@ export function ConversationSidebar() {
                 {(status) => (
                   <BoardColumn
                     status={status}
-                    groups={groups().filter((group) => (group.workflow.status ?? "unclassified") === status)}
+                    groups={boardGroups().filter((group) => (group.workflow.status ?? "unclassified") === status)}
                   />
                 )}
               </For>
