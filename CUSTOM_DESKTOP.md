@@ -50,8 +50,10 @@ packaging, ad-hoc signing and GUI/API smoke test. Production prebuild refuses a 
 build without an explicit local CLI distribution. Tests make no inference requests.
 Do not run smoke/build against an active custom app/session without permission: smoke
 opens and closes its own window, and version changes may restart the custom server.
-The scripts refuse if a custom desktop window is running. For interactive source development:
-`OPENCODE_CUSTOM=1 bun run dev:desktop` (uses the isolated custom profile).
+The scripts refuse if a custom desktop window is running. For interactive source development,
+close the custom desktop first and use a separate backend sandbox:
+`OPENCODE_CUSTOM_ROOT="$HOME/.local/share/opencode-custom-dev" OPENCODE_CUSTOM=1 bun run dev:desktop`.
+This uses fresh development server data rather than running two servers against the custom database.
 
 Installation requires a successful smoke report matching both backend and app archive
 hashes and verifies the signature. It backs up data, archives the candidate and previous
@@ -87,3 +89,6 @@ Packaged and installed GUI launched and restored the imported session listing.
 API PID resolves to `ai.opencode.desktop.custom/cli/<custom-version>-arm64/opencode-cli`;
 SHA-256 matches the bundled backend, and original service registration stays unchanged.
 Reports and screenshots are produced beside the tested bundle. No model request was made.
+The complete `custom-build.sh` workflow passed. Installation, rollback to the first tested
+build, and reinstallation of the latest build each passed the packaged GUI/API smoke test.
+Both imported credential records matched the initial backup without exposing their contents.
